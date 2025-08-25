@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>map TEST</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html,body,#map { height:100%; margin:0; }
+    .badge { position:absolute; z-index:1000; left:8px; top:8px; background:#000a; color:#fff; padding:6px 10px; border-radius:8px; font:14px/1.2 system-ui; }
+  </style>
+</head>
+<body>
+  <div class="badge">定位中… <span id="status"></span></div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+
+    // 建地圖
+    const map = L.map('map', { zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    let meMarker = null;   // 自己的點
+    let accCircle = null;  // 精度圓
+
+    function updateMarker(lat, lng, accuracy) {
+      const latlng = [lat, lng];
+
+      if (!meMarker) {
+        meMarker = L.marker(latlng).addTo(map).bindPopup('你在這裡');
+        map.setView(latlng, 16);
+      } else {
+        meMarker.setLatLng(latlng);
+      }
+
+      if (!accCircle) {
+        accCircle = L.circle(latlng, { radius: accuracy }).addTo(map);
+      } else {
+        accCircle.setLatLng(latlng).setRadius(accuracy);
+      }
+    }
+
+    function onLocateSuccess(pos) {
+      const { latitude, longitude, accuracy } = pos.coords;
+      statusEl.textContent = `lat:${latitude.toFixed(6)}, lng:${longitude.toFixed(6)}, ±${Math.round(accuracy)}m`;
+      updateMarker(latitude, longitude, accuracy || 30);
+    }
+
+    function onLocateError(err) {
+      statusEl.textContent = '定位失敗：' + err.message;
+      // 給個台北車站預設視角
+      map.setView([25.0478, 121.5170], 13);
+    }
+
+    if ('geolocation' in navigator) {
+      // 先取一次
+      navigator.geolocation.getCurrentPosition(onLocateSuccess, onLocateError, {
+        enableHighAccuracy: true, timeout: 10000, maximumAge: 5000
+      });
+      // 持續追蹤
+      navigator.geolocation.watchPosition(onLocateSuccess, onLocateError, {
+        enableHighAccuracy: true, timeout: 20000, maximumAge: 5000
+      });
+    } else {
+      statusEl.textContent = '此瀏覽器不支援 Geolocation';
+      map.setView([25.0478, 121.5170], 13);
+    }
+  </script>
+</body>
+</html>
